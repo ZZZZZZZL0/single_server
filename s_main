@@ -144,7 +144,7 @@ end for;
 hout:=[];
 hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;   
 hout[3]:=(v2i(h2)+v2i(c)) mod 2^32;   hout[4]:=(v2i(h3)+v2i(d)) mod 2^32;
-hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f))  mod 2^32;
+hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f)) mod 2^32;
 hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
 //_________________________________________________________________________________
 					    //OUTPUT
@@ -264,7 +264,7 @@ print "finish loading gentry";
 
 
 
-mx:=20;    itrivial:=    ;
+mx:=20;    itrivial:=3;
 
 
 for npower in [13..mx] do
@@ -274,7 +274,7 @@ for npower in [13..mx] do
      PrintFile("stime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
 
-x:=[ 2^w-1 : i in [1..n] ];           query_input:=10;    // \in [0..n-1]
+x:=[ 2^w-1 : i in [1..n] ];           query_input:=10;    // in [0..n-1]
 
 //___________________________________HASH________________________________________
 Lay_num:= mx;          		     layer:=Lay_num-1;
@@ -400,61 +400,47 @@ end for;
 
 
 
+//___________________________execute the PIR__________________________
+	print "begin execute the single server PIR";
 
-
-
-
-
-
-
-//210101
-
-
-
-
-
-
-
-//_______________________________execute the PIR_______________________________
-print "begin execute the single server PIR";
-iterations:=10;
+iterations:=2;     ut:=[];   st:=[];
 for cyc in [1..iterations] do   	      //**********iteration**********
 servertime:=[];        usertime:=[];         Res:=[];      
 	
-ct:=Cputime();  
+	ct:=Cputime();  
+
 for itriv in [1..itrivial] do		   // trivial retrieval     
-    Res[itriv]:=HB[itriv,alpha[itriv]+1]; 
+	Res[itriv]:=HB[itriv,alpha[itriv]+1]; 
 end for;
 
 for i in [itrivial+1..Lay_num-1] do 
 	servertime[i-itrivial]:=0.0;        usertime[i-itrivial]:=0.0;          temp:=[];	
-  qx:=alpha[i]+1;	     cac:=Min(i-itrivial,#markind);
+                qx:=alpha[i]+1;	cac:=Min(i-itrivial,#markind);
 
 	ts:=[];       tu:=[];
-	for query_index in[markind[cac,qx,1,1]..markind[cac,qx,2,1]] do
+for query_index in[markind[cac,qx,1,1]..markind[cac,qx,2,1]] do
         if i ge Lay_num then
-	          io:=Ceiling( Log(2,2^Lay_num) );    	X:=HB[Lay_num];
-	          Rep:=gentry(query_index,#X,Ee[Lay_num-itrivial],Ss[Lay_num-itrivial],Pp[Lay_num-itrivial],1);
+	io:=Ceiling( Log(2,2^Lay_num) );    	X:=HB[Lay_num];
+	Rep:=gentry(query_index, #X, Ee[Lay_num-itrivial], Ss[Lay_num-itrivial], Pp[Lay_num-itrivial], 1);
         else    
-	          io:=Ceiling( Log(2,32*2^i) );                 X:=HB[i];
-            Rep:=gentry(query_index,hah*#X,Ee[i-itrivial],Ss[i-itrivial],Pp[i-itrivial],0);
+	io:=Ceiling( Log(2,32*2^i) );                 X:=HB[i];
+                Rep:=gentry(query_index, hah*#X, Ee[i-itrivial], Ss[i-itrivial], Pp[i-itrivial], 0);
         end if;
         
         if query_index eq markind[cac,qx,1,1] then
-	          temp:=temp cat Intseq(Rep[1],2,io)[markind[cac,qx,1,2]..io];
+	temp:=temp cat Intseq(Rep[1],2,io)[markind[cac,qx,1,2]..io];
         elif query_index lt markind[cac,qx,2,1] then
-	          temp:=temp cat Intseq(Rep[1],2,io);
+	temp:=temp cat Intseq(Rep[1],2,io);
         else
-	          temp:=temp cat Intseq(Rep[1],2,io)[1..markind[cac,qx,2,2]];
+	temp:=temp cat Intseq(Rep[1],2,io)[1..markind[cac,qx,2,2]];
         end if;
-        
-        countq:=1;
-	      ts[countq]:=Rep[2];        tu[countq]:=Rep[3];
-	      countq:=countq+1;
-	end for;
+                countq:=1;
+	ts[countq]:=Rep[2];        tu[countq]:=Rep[3];
+	countq:=countq+1;
+end for;
 
-servertime[i-itrivial]:=&+ts;      usertime[i-itrivial]:=&+tu;
-Res[i]:=Seqint(temp,2);  
+servertime[i-itrivial]:=&+ts;        usertime[i-itrivial]:=&+tu;
+	Res[i]:=Seqint(temp,2);  
 end for;
 
 for i in [Lay_num,Lay_num+1] do
@@ -463,13 +449,8 @@ for i in [Lay_num,Lay_num+1] do
       Res[i]:=Intseq(Rep[1],2,Lay_num)[qx]; 
 end for;
 
-
-
-
-
-
-//___________________________Verification_Res_____________________________ 
-vft:=Cputime(ct);                     
+//_______________Verification_Res_________________      
+vft:=Cputime(ct);             
 ver:=IntegerToString( Res[Lay_num+1] );         // MonStgElt 
 j:=Lay_num;
 while j gt 0 do
@@ -489,13 +470,23 @@ else
 end if;
 
 wholetime:=Cputime(ct);    //****time of query+reconstruction+verification
-PrintFile("vtime_gentry.txt",wholetime-vft); 
 utime:= &+usertime;	      // ******* time of query and reconstruction
 stime:= &+servertime;      	      // ******* time of answer
+ut[cyc]:=utime;  	st[cyc]:=stime;
 
 PrintFile("utime_gentry.txt",utime);
 PrintFile("stime_gentry.txt",stime); 
 PrintFile("ptime_gentry.txt",vft-utime-stime); 
 
 end for;   // end for the  40  iterations
+
+PrintFile("utime_gentry.txt", <"the average time consumed by the user is", &+ut/#ut>);
+PrintFile("stime_gentry.txt", <"the average time consumed by the server is", &+st/#st>); 
 end for;   // end for npower iterations
+
+
+
+
+
+
+
