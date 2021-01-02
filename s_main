@@ -241,8 +241,21 @@ timeanswer:=Cputime(tcr) - timeuser1;
 he:=g_e^q;      result:=PH(h,he,prm) mod S[query_index];
 
 timeuser:=Cputime(tcr) - timeanswer;
-return <result,timeanswer,timeuser>;
 
+
+// _________________________________________________________________________________
+rdt:=Cputime();
+filenmq:="query_gentry" cat "npower" cat ".txt";      
+filenma:="answer_gentry" cat "npower" cat ".txt";
+		//RECORD    THIS TIME SHOULD BE DELETE IN THE USER'S TIME
+PrintFile(filenmq,  quy);  		//  quy[1],  quy[2]         PrintFile("query_pirwy1231.txt", cc);  
+PrintFile(filenma, Fzq);  		// Fzq[2], pfq[2][1],  pfq[2][2], ... pfq[2][u]
+PrintFile(filenma, pfq);  
+recordtime:=Cputime(rdt);		delete rdt;
+// _________________________________________________________________________________
+
+
+return <result,timeanswer,timeuser>;
 end function;
 print "finish loading gentry";
 //_________________________after loading FUNCTION gentry_______________________
