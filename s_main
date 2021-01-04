@@ -1,4 +1,44 @@
 clear;
+	// ______________FUNCTION Pohlig-Hellman______________
+function PH(alphain,betain,p)
+gq:=GF(p);      alpha:= gq!alphain;      
+crt1:=[];           crt2:=[];           a:=[];           Q:=[];          C:=[];
+n:=p-1;            fpi:=Factorization(n);                
+for u in [1..#fpi] do
+	Q[u]:=fpi[u,1];      C[u]:=fpi[u,2];      crt2[u]:=Q[u]^C[u];
+	a[u]:=[];      q:=Q[u];      c:=C[u];
+
+beta:=gq!betain;        j:=1;
+while j le c do          
+	delta:=beta^( n div q^j ) ; 
+	i:=1;              // temp:=alpha^( i*n* q^(-1) ) ;
+	temp:=alpha^( i*n div q );
+	while i le q^c and delta ne temp do
+		i:=i+1;        temp:=alpha^( i*n div q );
+	end while;
+	a[u][j]:=i;
+	beta:=beta*alpha^( -a[u][j]*q^(j-1) );
+	j:=j+1;
+end while;       // get all the elements in a[u] in terms of  q=Q[u], c=C[u]
+
+crt1[u]:=0;
+for id in [ 1..c ] do
+    crt1[u]:=crt1[u]+a[u][id]*q^(id-1) ;
+end for;
+
+end for;
+	return ChineseRemainderTheorem(crt1,crt2);
+end function;
+//_______________________________________________________________________
+
+
+
+
+
+
+
+
+
 
 function SH6(num)					// input: an integer
 
@@ -144,7 +184,7 @@ end for;
 hout:=[];
 hout[1]:=(v2i(h0)+v2i(a)) mod 2^32;   hout[2]:=(v2i(h1)+v2i(b)) mod 2^32;   
 hout[3]:=(v2i(h2)+v2i(c)) mod 2^32;   hout[4]:=(v2i(h3)+v2i(d)) mod 2^32;
-hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f)) mod 2^32;
+hout[5]:=(v2i(h4)+v2i(e)) mod 2^32;   hout[6]:=(v2i(h5)+v2i(f))  mod 2^32;
 hout[7]:=(v2i(h6)+v2i(g)) mod 2^32;   hout[8]:=(v2i(h7)+v2i(h)) mod 2^32;
 //_________________________________________________________________________________
 					    //OUTPUT
@@ -164,64 +204,20 @@ end function;
 
 
 
-// ____________________________FUNCTION Pohlig-Hellman____________________________
-function PH(alphain,betain,p)
-gq:=GF(p);         alpha:= gq!alphain;      
-crt1:=[];          crt2:=[];           a:=[];           Q:=[];          C:=[];
-n:=p-1;            fpi:=Factorization(n);                
-for u in [1..#fpi] do
-    Q[u]:=fpi[u,1];      C[u]:=fpi[u,2];      crt2[u]:=Q[u]^C[u];
-    a[u]:=[];      q:=Q[u];      c:=C[u];
-    beta:=gq!betain;        j:=1;
-    
-while j le c do          
-    delta:=beta^( n div q^j ) ; 
-    i:=1;              // temp:=alpha^( i*n* q^(-1) ) ;
-    temp:=alpha^( i*n div q );
-    while i le q^c and delta ne temp do
-        i:=i+1;        temp:=alpha^( i*n div q );
-    end while;
-    a[u][j]:=i;
-    beta:=beta*alpha^( -a[u][j]*q^(j-1) );
-    j:=j+1;
-end while;       // get all the elements in a[u] in terms of  q=Q[u], c=C[u]
-
-crt1[u]:=0;
-for id in [ 1..c ] do
-    crt1[u]:=crt1[u]+a[u][id]*q^(id-1) ;
-end for;
-
-end for;
-
-return ChineseRemainderTheorem(crt1,crt2);
-end function;
-//_____________________________________________________________________________
 
 
-
-
-
-
-
-
-gentry:=function(query_index,n,e,S,P,ed)
-// ____________________________________ input _________________________________     
-if ed eq 1 then
-    io:=Ceiling(Log(2,n));     t:=Ceiling(n/io);      k:=Ceiling(Log(2,n)); // it is the last line,0-1DB
-else
-    io:=Ceiling(Log(2,n*32));  t:=Ceiling(32*n/io);   k:=Ceiling(Log(2,32*n));
-end if;
-
+gentry:=function(query_index,n,e,S,P)
 
 tcr:=Cputime();
-// ______________________________query(m,x,Y,s)________________________________
-prm:= -1;       id:=2^(k-io);
+
+// ____________________________query___________________________
+prm:= -1;       id:=0;
 while not IsPrime(prm) do
      id:=id+1;
      prm:=id*S[query_index]+1;
 end while;
 G:=GF(prm);
-//_________________________________cyclic group G ____________________________  
+//______________________cyclic group G _______________________  
 Gp:=PrimitiveElement(G);          indg:=(prm-1) div S[query_index];
 for pj in P do
     if  indg mod pj eq 0 then
@@ -230,263 +226,206 @@ for pj in P do
 end for;     
 g:=Gp^indg;       
 
-q:=Order(g) div S[query_index];   h:=g^q;        // user keep these private   
-
-// __________________________answer_______________________
+q:=Order(g) div S[query_index];        h:=g^q;        // user keep these private   
+// ___________________________answer________________________
 timeuser1:=Cputime(tcr);  
 g_e:=g^e;				// server: answer
 timeanswer:=Cputime(tcr) - timeuser1;     	
 
-// ______________________ reconstruction___________________
-he:=g_e^q;      result:=PH(h,he,prm) mod S[query_index];
+// ______________________ reconstruction_____________________
+he:=g_e^q;      result:=PH(h,he,prm) mod S[query_index];     // solve x: h^x = he
 
 timeuser:=Cputime(tcr) - timeanswer;
-
-
-// _________________________________________________________________________________
-rdt:=Cputime();
-filenmq:="query_gentry" cat "npower" cat ".txt";      
-filenma:="answer_gentry" cat "npower" cat ".txt";
-		//RECORD    THIS TIME SHOULD BE DELETE IN THE USER'S TIME
-PrintFile(filenmq,  quy);  		//  quy[1],  quy[2]         PrintFile("query_pirwy1231.txt", cc);  
-PrintFile(filenma, Fzq);  		// Fzq[2], pfq[2][1],  pfq[2][2], ... pfq[2][u]
-PrintFile(filenma, pfq);  
-recordtime:=Cputime(rdt);		delete rdt;
-// _________________________________________________________________________________
-
-
 return <result,timeanswer,timeuser>;
+
 end function;
-print "finish loading gentry";
-//_________________________after loading FUNCTION gentry_______________________
 
 
 
 
 
-mx:=20;    itrivial:=3;
 
 
+//________________________________________________________________________________________________________________________________________________
+
+
+	//load "single_function.txt";
+	print "finish loading the necessary functions";
+
+
+mx:=13;    itrivial:=0;      w:=256;      q:=NextPrime(2^w); 
+//________________________________________________________________________________   
+t:=Ceiling(2^mx/mx);       
+Pa:=[];         Sa:=[];         Pa[1] :=NextPrime(2*t);    
+for i in [2..t] do
+      Pa[i]:=NextPrime(Pa[i-1]);
+end for;
+
+for pi in Pa do
+      temp:=Ceiling(mx/Log(2,pi) );      Sa:=Append( Sa, pi^temp );    
+end for;
+
+
+
+
+
+//_____________________________________________________________________________
 for npower in [13..mx] do
      print "__________________the following results are with n=2^",npower;   
-     n:=2^npower;   
+     n:=2^npower;         
+     query_input:=9;    // in [0..n-1]
      PrintFile("utime_gentry1231.txt","when n=2^" cat IntegerToString(npower));
      PrintFile("stime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
 
-x:=[ 2^w-1 : i in [1..n] ];           query_input:=10;    // in [0..n-1]
-
+tpre:=Cputime();
 //___________________________________HASH________________________________________
-Lay_num:= mx;          		     layer:=Lay_num-1;
-HBBG:=[ []: i in[1..Lay_num-1] ];      HBBG[Lay_num]:=[ 2^w-1 : i in [1..2^mx] ];
+	// for a n-bit database;
+ellw:=Ceiling(n/w);            Lay_num:=Ceiling(Log(2,ellw));	     lgn:=Ceiling(Log(2,n));    
+//__________________________________________________________________________________
+MH:=[ []: i in[1..Lay_num] ];      	// save the merkle tree;
+temp:=2^(w- w mod lgn)-1;	     MH[Lay_num]:=[ temp : i in [1..Floor(n/w)] ];
+if n mod w gt 0 then
+      MH[Lay_num]:=Append(MH[Lay_num],  2^(n mod w)-1 );
+end if;
 
+layer:=Lay_num-1;
 while layer gt 0 do
-       len:= #HBBG[layer+1];
-       str1:= IntegerToString( HBBG[layer+1,1] );
-       HBBG[layer]:= [SH6(StringToInteger(str1 cat str1)) : i in [1..2^layer]];
+      stl:=IntegerToString(MH[layer+1][1]);       tpmh:= SH6(StringToInteger(stl cat stl));
+      MH[layer]:=[tpmh: id in [1..Ceiling(#MH[layer+1]/2)-1] ];
+     
+      stl2:= IntegerToString( MH[layer+1] [#MH[layer+1]] );
+      if #MH[layer+1] mod 2 eq 0 then      
+            tpmh:= SH6(StringToInteger(stl cat stl2)); 
+      else
+            tpmh:= SH6(MH[layer+1] [#MH[layer+1]]);
+      end if;
+      MH[layer]:=Append(MH[layer],  tpmh);        layer:=layer-1;
+end while;
+
+stl:= IntegerToString(MH[1,1]);
+Root:= SH6( StringToInteger(stl cat stl) ); 
+    
+delete layer, temp, stl, stl2;
+//_____________________________________________________________________________
+elln:=Ceiling(n/lgn);	
+HB:=[ []: i in [1..Lay_num] ]; 	     
+HB[Lay_num]:=[ n-1: i in [1..elln-1] ];
+HB[Lay_num]:=Append(HB[Lay_num],   2^(n mod lgn)-1);
+
+layer:=Lay_num-1;	
+while layer ge 1 do
+       tp:=Intseq(MH[layer][1],2);    	//左边是低位
+       temp:=Seqint(tp[1..lgn], 2);
+       tph:=[temp: id in [1..Floor(w/lgn)] ];      
+       tph:=Append( tph, Seqint(tp[#tp-(w mod lgn)+1..#tp], 2) );
+       for j in [1..#MH[layer]-1] do
+              HB[layer]:=HB[layer] cat tph;
+       end for;
+
+       tp:=Intseq(MH[layer][#MH[layer]],2);    	//左边是低位
+       temp:=Seqint(tp[1..lgn], 2);
+       tph:=[temp: id in [1..Floor(w/lgn)] ];       
+       tph:=Append(tph, Seqint( tp[#tp-(w mod lgn)+1..#tp], 2) );        
+       HB[layer]:=HB[layer] cat tph;
+
        layer:= layer - 1;
 end while;
 
-str1:= IntegerToString(HBBG[1,1]);
-RootHBBG:= SH6( StringToInteger(str1 cat str1) );    
-delete layer, str1;
+delete layer, tp, tph;
 //________________________________________________________________________________    
 print "+HASH consumes", Cputime(tpre);          delete tpre;
 
 
-
-
-
-//________________________________TIMING_____________________________
+//__________________________encode the database to e__________________________
 pret:=Cputime();
-Ee:=[];     Pp:=[];     Ss:=[];	begnd:=[];
+
+Ee:=[-1: i in [1..Lay_num]];
 for sd in [itrivial+1..Lay_num] do
-begnd[sd-itrivial]:=[];
-  if sd eq Lay_num then
-	     io:=Ceiling(Log(2,#HB[sd]));        t:=Ceiling(#HB[sd]/io); 
-  else
-	     io:=Ceiling(Log(2,hah*#HB[sd]));    t:=Ceiling(hah*#HB[sd]/io);
-  end if;
-	P:=[];        S:=[];    	P[1] :=NextPrime(2*t);    
-	for i in [2..t] do
-	      P[i]:=NextPrime(P[i-1]);
-	end for;
-	for pi in P do
-	      temp:=Ceiling( io/Log(2,pi) );  S:=Append( S,pi^temp );    
-	end for;
-	delete temp;
-        DB:=[];
-        if sd eq Lay_num then
-	for i in [1..t] do	   
-	     if i lt t then
-	      	     temp:=HB[sd][io*(i-1)+1..io* i];    
-	     else    
-               temp:=HB[sd][io*(i-1)+1..#HB[sd]]; 
-	     end if;
-	     DB[i]:=Seqint(temp,2); 
-	end for;
-        else
-	for i in [1..t] do
-	     begnd[sd-itrivial,i]:=[];	
-	     begDBi:=io*(i-1)+1;             endDBi:=io*i;
-	     ib1:=Ceiling(begDBi/hah);   ib2:=begDBi mod hah;
-		if ib2 eq 0 then
-		    ib2:=hah;
-		end if;
-	     ie1:=Ceiling(endDBi/hah);    ie2:=endDBi mod hah;
-		if ie2 eq 0 then
-		    iee:=hah;
-		end if;		
-	     begnd[sd-itrivial,i]:=[ib1,ib2,ie1,ie2];
-
-       	     temp:=Intseq(HB[sd,ib1],2,hah)[ib2..Min(io+ib2-1,hah)];
-	     if ie1-ib1 gt 1 then
-	            for j in [ib1+1..ie1-1 ] do
-		  tp:=Intseq(HB[sd,j],2,hah);
-	                  temp:=temp cat tp; 
-	            end for;
-	     end if;
-	     if ie1-ib1 eq 1 then
-	           if ie1 gt #HB[sd] then
-		tp:=[0: jk in[1..ie2] ];    
-                           else 
-		tp:=Intseq(HB[sd,ie1],2,hah)[1..ie2 ];     
-	           end if;
-	           temp:=temp cat tp; 
-	     end if;
-
-	     DB[i]:=Seqint(temp,2);
-	end for;
-        end if;     		// end for sd eq Lay_num
-
-Ee[sd-itrivial]:=CRT(DB,S);          Pp[sd-itrivial]:=P;          Ss[sd-itrivial]:=S;
+     Ee[sd]:=CRT(HB[sd], Sa[1..#HB[sd]]);               
 end for;    //end for sd in [itrivial+1...Lay_num]
 
-pretime1:=Cputime(pret);
+pretime1:=Cputime(pret);     // the encoding time, preparation of the server
+PrintFile("stime_gentry.txt", <"preprocessing time of server is", pretime1> );
+PrintFile("stime_gentry.txt","************");        	 delete pret;
 
-//_________________________find the involving indices__________________________		
-alpha:=[0: indx in [1..Lay_num+1]];            // alpha stores these involving indices, starts from 0
-alpha[Lay_num+1]:=query_input;        alpha[Lay_num]:= query_input + 1;
 
-if query_input mod 2 eq 1 then 
-     alpha[Lay_num]:= query_input - 1;
-end if;
+//____________________________find the authenticaiton path_________________________
+ii:=Ceiling(query_input/ Floor(w/lgn) );      // lgn-bit block  in the ii-th w-bit block
+
+alpha:=[0: indx in [1..Lay_num+1]];            // authentication w-bit block, starts from 0
+alpha[Lay_num+1]:=ii;        
+alpha[Lay_num]:=ii + 2*(ii mod 2) - 1;   
 
 for j := Lay_num-1 to 1 by -1 do
-     alpha[j]:= Floor(alpha[j+1]/2);
+     tp:=Ceiling(alpha[j+1]/2);
+     alpha[j]:= tp + 2*(tp mod 2) - 1;   
 end for;
 
-
-
-//______________________________________________________________________________
-markind:=[];
-for sd in [itrivial+1..Lay_num-1] do
-markind[sd-itrivial]:=[];
-for u in [1..2^sd] do
-    markind[sd-itrivial,u]:=[];      //标记HB[sd,u]所在的位置
-    markind[sd-itrivial,u,1]:=[Ceiling( ((u-1)*hah+1)/(sd+Log(2,hah)) ),  ((u-1)*hah+1) mod (sd+Ceiling(Log(2,hah)) ) ];
-        if markind[sd-itrivial,u,1,2] eq 0 then
-	markind[sd-itrivial,u,1,2]:=sd+Ceiling(Log(2,hah));
-        end if;
-    markind[sd-itrivial,u,2]:=[Ceiling( u*hah/(sd+Log(2,hah)) ),  u*hah mod (sd+Ceiling(Log(2,hah)) ) ];
-        if markind[sd-itrivial,u,2,2] eq 0 then
-	markind[sd-itrivial,u,2,2]:=sd+Ceiling(Log(2,hah));
-        end if;
-end for;
-end for;
-
-
-
-
-
-
-//___________________________execute the PIR__________________________
+//_________________________________execute the PIR_______________________________
 	print "begin execute the single server PIR";
 
 iterations:=2;     ut:=[];   st:=[];
 for cyc in [1..iterations] do   	      //**********iteration**********
-servertime:=[];        usertime:=[];         Res:=[];      
-	
-	ct:=Cputime();  
+     servertime:=[[]: id in [1..Lay_num+1]];         usertime:=[[]: id in [1..Lay_num+1]];              Res:=[[]: id in [1..Lay_num+1]]; 
+     	
+     ct:=Cputime();          Resv:=[];
 
-for itriv in [1..itrivial] do		   // trivial retrieval     
-	Res[itriv]:=HB[itriv,alpha[itriv]+1]; 
-end for;
+     for itriv in [1..itrivial] do    
+	Resv[itriv]:=MH(itriv,alpha[i]); 
+     end for;
 
-for i in [itrivial+1..Lay_num-1] do 
-	servertime[i-itrivial]:=0.0;        usertime[i-itrivial]:=0.0;          temp:=[];	
-                qx:=alpha[i]+1;	cac:=Min(i-itrivial,#markind);
+     for i in [itrivial+1..Lay_num+1] do     
+          if i ge Lay_num then
+	X:= HB[Lay_num];        S:=Sa;       P:=Pa;               temp:=[];
+	for qx in [(alpha[i]-1)*Floor(w/lgn)+1..alpha[i]*Floor(w/lgn)] do
+	      Rep:=gentry(qx, #X, Ee[Lay_num], S, P);  
+	                            Res[i][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[1];
+	      temp:=temp cat Intseq(Rep[1],2);
+	      servertime[i-itrivial][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[2]; 
+	         usertime[i-itrivial][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[3];
+	end for;	
+	Resv[i]:=Seqint(temp,2); 
+          else
+	X:=HB[i];        S:=Sa[1..#X];       P:=Pa[1..#X];          temp:=[];	     
+	for qx in [(alpha[i]-1)*Ceiling(w/lgn)+1..alpha[i]*Ceiling(w/lgn)] do
+	      Rep:=gentry(qx, #X, Ee[i], S, P);  
+	                            Res[i][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[1];
+	      temp:=temp cat Intseq(Rep[1],2);
+	      servertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[2]; 
+	         usertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[3];	      
+	end for; 
+	Resv[i]:=Seqint(temp,2); 
+          end if;   
+     end for;
+//______________________________Verification_Res________________________________      
+     j:=Lay_num;	ver:=Resv[j+1];        
+     while j gt 0 do
+          tempj:=Resv[j];    
+          if IsOdd(alpha[j]) then
+               ver:=SH6(StringToInteger( IntegerToString(tempj) cat IntegerToString(ver) ));
+          else
+               ver:=SH6(StringToInteger( IntegerToString(ver) cat IntegerToString(tempj) ));
+          end if;
+          j:=j-1;
+     end while;
 
-	ts:=[];       tu:=[];
-for query_index in[markind[cac,qx,1,1]..markind[cac,qx,2,1]] do
-        if i ge Lay_num then
-	io:=Ceiling( Log(2,2^Lay_num) );    	X:=HB[Lay_num];
-	Rep:=gentry(query_index, #X, Ee[Lay_num-itrivial], Ss[Lay_num-itrivial], Pp[Lay_num-itrivial], 1);
-        else    
-	io:=Ceiling( Log(2,32*2^i) );                 X:=HB[i];
-                Rep:=gentry(query_index, hah*#X, Ee[i-itrivial], Ss[i-itrivial], Pp[i-itrivial], 0);
-        end if;
-        
-        if query_index eq markind[cac,qx,1,1] then
-	temp:=temp cat Intseq(Rep[1],2,io)[markind[cac,qx,1,2]..io];
-        elif query_index lt markind[cac,qx,2,1] then
-	temp:=temp cat Intseq(Rep[1],2,io);
-        else
-	temp:=temp cat Intseq(Rep[1],2,io)[1..markind[cac,qx,2,2]];
-        end if;
-                countq:=1;
-	ts[countq]:=Rep[2];        tu[countq]:=Rep[3];
-	countq:=countq+1;
-end for;
+     if ite eq 1 then      //print the verfication result only once
+          if  ver eq Root  then
+               print "result",Resv[#Resv]," pass the verification";
+          else 
+               print "result",Resv[#Resv]," does NOT pass the verification";
+          end if; 
+     end if;
 
-servertime[i-itrivial]:=&+ts;        usertime[i-itrivial]:=&+tu;
-	Res[i]:=Seqint(temp,2);  
-end for;
+     wholetime:=Cputime(ct);	          //****time of query+reconstruction+verification
+     utime:=   &+[&+usertime[id]: id in [1..#usertime] ]; 	
+     stime:= &+[&+servertime[id]: id in [1..#usertime] ];      	      
+     ut[cyc]:=utime;  		st[cyc]:=stime;
 
-for i in [Lay_num,Lay_num+1] do
-      qx:=alpha[i]+1;        query_index:=Ceiling(qx/Lay_num);
-      Rep:=gentry(query_index,#X,Ee[Lay_num-itrivial],Ss[Lay_num-itrivial],Pp[Lay_num-itrivial],1);
-      Res[i]:=Intseq(Rep[1],2,Lay_num)[qx]; 
-end for;
-
-//_______________Verification_Res_________________      
-vft:=Cputime(ct);             
-ver:=IntegerToString( Res[Lay_num+1] );         // MonStgElt 
-j:=Lay_num;
-while j gt 0 do
-    tempj:=IntegerToString( Res[j] );                   // MonStgElt
-    if IsOdd(alpha[j]) then
-       ver:=IntegerToString( Hash(ver cat tempj) );
-    else
-       ver:=IntegerToString( Hash(tempj cat ver) );
-    end if;
-    j:=j-1;
-end while;
-
-if  ver eq IntegerToString(Root) then
-     print "result",Res[#Res],", pass the verification";
-else 
-     print "result",Res[#Res],", does NOT pass the verification";
-end if;
-
-wholetime:=Cputime(ct);    //****time of query+reconstruction+verification
-utime:= &+usertime;	      // ******* time of query and reconstruction
-stime:= &+servertime;      	      // ******* time of answer
-ut[cyc]:=utime;  	st[cyc]:=stime;
-
-PrintFile("utime_gentry.txt",utime);
-PrintFile("stime_gentry.txt",stime); 
-PrintFile("ptime_gentry.txt",vft-utime-stime); 
-
+     PrintFile("utime_gentry.txt",utime);       PrintFile("stime_gentry.txt",stime); 
 end for;   // end for the  40  iterations
 
 PrintFile("utime_gentry.txt", <"the average time consumed by the user is", &+ut/#ut>);
 PrintFile("stime_gentry.txt", <"the average time consumed by the server is", &+st/#st>); 
 end for;   // end for npower iterations
-
-
-
-
-
-
-
