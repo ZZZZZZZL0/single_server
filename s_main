@@ -205,8 +205,7 @@ end function;
 
 
 
-
-gentry:=function(query_index,n,e,S,P)
+gentry:=function(query_index,n,e,S,P,finpow)
 
 tcr:=Cputime();
 
@@ -236,6 +235,14 @@ timeanswer:=Cputime(tcr) - timeuser1;
 he:=g_e^q;      result:=PH(h,he,prm) mod S[query_index];     // solve x: h^x = he
 
 timeuser:=Cputime(tcr) - timeanswer;
+
+
+filenmq:="query_gentry" cat IntegerToString(finpow) cat ".txt";      
+filenma:="answer_gentry" cat IntegerToString(finpow) cat ".txt";
+		
+PrintFile(filenmq, prm);	PrintFile(filenmq, g); 
+PrintFile(filenma, g_e);  		
+
 return <result,timeanswer,timeuser>;
 
 end function;
@@ -244,16 +251,15 @@ end function;
 
 
 
-
-
 //________________________________________________________________________________________________________________________________________________
 
 
+		//clear;
 	//load "single_function.txt";
 	print "finish loading the necessary functions";
 
 
-mx:=13;    itrivial:=0;      w:=256;      q:=NextPrime(2^w); 
+mx:=14;    itrivial:=0;      w:=256;      q:=NextPrime(2^w); 
 //________________________________________________________________________________   
 t:=Ceiling(2^mx/mx);       
 Pa:=[];         Sa:=[];         Pa[1] :=NextPrime(2*t);    
@@ -274,9 +280,9 @@ for npower in [13..mx] do
      print "__________________the following results are with n=2^",npower;   
      n:=2^npower;         
      query_input:=9;    // in [0..n-1]
-     PrintFile("utime_gentry1231.txt","when n=2^" cat IntegerToString(npower));
-     PrintFile("stime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
-     PrintFile("ptime_gentry1231.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("utime_gentry.txt","when n=2^" cat IntegerToString(npower));
+     PrintFile("stime_gentry.txt","when n=2^" cat IntegerToString(npower)); 
+     PrintFile("ptime_gentry.txt","when n=2^" cat IntegerToString(npower)); 
 
 tpre:=Cputime();
 //___________________________________HASH________________________________________
@@ -334,23 +340,21 @@ end while;
 
 delete layer, tp, tph;
 //________________________________________________________________________________    
-print "+HASH consumes", Cputime(tpre);          delete tpre;
+//print "+HASH consumes", Cputime(tpre);        
 
 
 //__________________________encode the database to e__________________________
-pret:=Cputime();
-
 Ee:=[-1: i in [1..Lay_num]];
 for sd in [itrivial+1..Lay_num] do
      Ee[sd]:=CRT(HB[sd], Sa[1..#HB[sd]]);               
 end for;    //end for sd in [itrivial+1...Lay_num]
 
-pretime1:=Cputime(pret);     // the encoding time, preparation of the server
-PrintFile("stime_gentry.txt", <"preprocessing time of server is", pretime1> );
-PrintFile("stime_gentry.txt","************");        	 delete pret;
-
+pretime1:=Cputime(tpre);     
+PrintFile("ptime_gentry.txt", <"preprocessing of the server and user consumes", pretime1> );
+PrintFile("ptime_gentry.txt","************");          delete tpre;	
 
 //____________________________find the authenticaiton path_________________________
+pu:=Cputime();
 ii:=Ceiling(query_input/ Floor(w/lgn) );      // lgn-bit block  in the ii-th w-bit block
 
 alpha:=[0: indx in [1..Lay_num+1]];            // authentication w-bit block, starts from 0
@@ -362,6 +366,8 @@ for j := Lay_num-1 to 1 by -1 do
      alpha[j]:= tp + 2*(tp mod 2) - 1;   
 end for;
 
+preuser:=Cputime(pu); 	delete pu;
+
 //_________________________________execute the PIR_______________________________
 	print "begin execute the single server PIR";
 
@@ -372,14 +378,14 @@ for cyc in [1..iterations] do   	      //**********iteration**********
      ct:=Cputime();          Resv:=[];
 
      for itriv in [1..itrivial] do    
-	Resv[itriv]:=MH(itriv,alpha[i]); 
+	Resv[itriv]:=MH(itriv,alpha[itriv]); 
      end for;
 
      for i in [itrivial+1..Lay_num+1] do     
           if i ge Lay_num then
 	X:= HB[Lay_num];        S:=Sa;       P:=Pa;               temp:=[];
 	for qx in [(alpha[i]-1)*Floor(w/lgn)+1..alpha[i]*Floor(w/lgn)] do
-	      Rep:=gentry(qx, #X, Ee[Lay_num], S, P);  
+	      Rep:=gentry(qx, #X, Ee[Lay_num], S, P, npower);  
 	                            Res[i][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[1];
 	      temp:=temp cat Intseq(Rep[1],2);
 	      servertime[i-itrivial][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[2]; 
@@ -389,7 +395,7 @@ for cyc in [1..iterations] do   	      //**********iteration**********
           else
 	X:=HB[i];        S:=Sa[1..#X];       P:=Pa[1..#X];          temp:=[];	     
 	for qx in [(alpha[i]-1)*Ceiling(w/lgn)+1..alpha[i]*Ceiling(w/lgn)] do
-	      Rep:=gentry(qx, #X, Ee[i], S, P);  
+	      Rep:=gentry(qx, #X, Ee[i], S, P, npower);  
 	                            Res[i][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[1];
 	      temp:=temp cat Intseq(Rep[1],2);
 	      servertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[2]; 
@@ -410,7 +416,7 @@ for cyc in [1..iterations] do   	      //**********iteration**********
           j:=j-1;
      end while;
 
-     if ite eq 1 then      //print the verfication result only once
+     if cyc eq 1 then      //print the verfication result only once
           if  ver eq Root  then
                print "result",Resv[#Resv]," pass the verification";
           else 
@@ -419,11 +425,11 @@ for cyc in [1..iterations] do   	      //**********iteration**********
      end if;
 
      wholetime:=Cputime(ct);	          //****time of query+reconstruction+verification
-     utime:=   &+[&+usertime[id]: id in [1..#usertime] ]; 	
+        utime:=&+[&+usertime[id]: id in [1..#usertime] ]; 	
      stime:= &+[&+servertime[id]: id in [1..#usertime] ];      	      
      ut[cyc]:=utime;  		st[cyc]:=stime;
 
-     PrintFile("utime_gentry.txt",utime);       PrintFile("stime_gentry.txt",stime); 
+     PrintFile("utime_gentry.txt",<"the user consumes",utime,"second, in the iteration",cyc>);        PrintFile("stime_gentry.txt",<"the server consumes",stime,"second, in the iteration",cyc>);
 end for;   // end for the  40  iterations
 
 PrintFile("utime_gentry.txt", <"the average time consumed by the user is", &+ut/#ut>);
