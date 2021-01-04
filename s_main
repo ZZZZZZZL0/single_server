@@ -253,47 +253,37 @@ end function;
 
 //________________________________________________________________________________________________________________________________________________
 
-
-		//clear;
+	//clear;
 	//load "single_function.txt";
 	print "finish loading the necessary functions";
 
 
-mx:=14;    itrivial:=0;      w:=256;      q:=NextPrime(2^w); 
-//________________________________________________________________________________   
-t:=Ceiling(2^mx/mx);       
-Pa:=[];         Sa:=[];         Pa[1] :=NextPrime(2*t);    
-for i in [2..t] do
-      Pa[i]:=NextPrime(Pa[i-1]);
-end for;
-
-for pi in Pa do
-      temp:=Ceiling(mx/Log(2,pi) );      Sa:=Append( Sa, pi^temp );    
-end for;
-
-
-
-
+mx:=16;    itrivial:=0;      w:=256;     
 
 //_____________________________________________________________________________
 for npower in [13..mx] do
-     print "__________________the following results are with n=2^",npower;   
+     printf "__________________the following results are involved with n=2^%o_______________\n",npower;   
      n:=2^npower;         
      query_input:=9;    // in [0..n-1]
      PrintFile("utime_gentry.txt","when n=2^" cat IntegerToString(npower));
      PrintFile("stime_gentry.txt","when n=2^" cat IntegerToString(npower)); 
      PrintFile("ptime_gentry.txt","when n=2^" cat IntegerToString(npower)); 
-
-tpre:=Cputime();
 //___________________________________HASH________________________________________
 	// for a n-bit database;
-ellw:=Ceiling(n/w);            Lay_num:=Ceiling(Log(2,ellw));	     lgn:=Ceiling(Log(2,n));    
+lgn:=Ceiling(Log(2,n));    elln:=Ceiling(n/lgn);     
+kk:=Floor(w/lgn);            
+ellw:=Ceiling(elln/kk);           Lay_num:=Ceiling(Log(2,ellw));	     
+delete kk;
+
+tpre:=Cputime(); 
 //__________________________________________________________________________________
 MH:=[ []: i in[1..Lay_num] ];      	// save the merkle tree;
 temp:=2^(w- w mod lgn)-1;	     MH[Lay_num]:=[ temp : i in [1..Floor(n/w)] ];
 if n mod w gt 0 then
       MH[Lay_num]:=Append(MH[Lay_num],  2^(n mod w)-1 );
 end if;
+temp:=[0: id in [1.. 2^Lay_num-#MH[Lay_num] ]  ];          //补零
+MH[Lay_num]:= MH[Lay_num] cat temp;
 
 layer:=Lay_num-1;
 while layer gt 0 do
@@ -309,45 +299,54 @@ while layer gt 0 do
       MH[layer]:=Append(MH[layer],  tpmh);        layer:=layer-1;
 end while;
 
-stl:= IntegerToString(MH[1,1]);
-Root:= SH6( StringToInteger(stl cat stl) ); 
+stl1:=IntegerToString(MH[1,1]);
+stl2:=IntegerToString(MH[1,2]);
+Root:= SH6( StringToInteger(stl1 cat stl2) ); 
     
 delete layer, temp, stl, stl2;
-//_____________________________________________________________________________
-elln:=Ceiling(n/lgn);	
+//_____________________________________________________________________________	
 HB:=[ []: i in [1..Lay_num] ]; 	     
 HB[Lay_num]:=[ n-1: i in [1..elln-1] ];
 HB[Lay_num]:=Append(HB[Lay_num],   2^(n mod lgn)-1);
 
 layer:=Lay_num-1;	
 while layer ge 1 do
-       tp:=Intseq(MH[layer][1],2);    	//左边是低位
-       temp:=Seqint(tp[1..lgn], 2);
-       tph:=[temp: id in [1..Floor(w/lgn)] ];      
-       tph:=Append( tph, Seqint(tp[#tp-(w mod lgn)+1..#tp], 2) );
-       for j in [1..#MH[layer]-1] do
-              HB[layer]:=HB[layer] cat tph;
+    for i in [1..#MH[layer]] do
+       tplgn:=lgn-(Lay_num-layer);       tp:=Intseq(MH[layer][i],2);      //左边是低位  
+       tp:=tp cat [0: id in [1..(w-#tp)]];	//补零
+       for j in [1..Floor(w/tplgn)] do
+              tbg:=(j-1)*tplgn+1;             ted:=j*tplgn;
+              temp:=Seqint(tp[tbg..ted], 2);
+              HB[layer]:=Append(HB[layer],  temp);
        end for;
+       if (w mod tplgn) gt 0 then
+            tbg:= #tp-(#tp mod tplgn)+1;   ted:=#tp;  
+            temp:=Seqint(tp[tbg..ted], 2);    HB[layer]:=Append(HB[layer],  temp);
+       end if;
+    end for;
 
-       tp:=Intseq(MH[layer][#MH[layer]],2);    	//左边是低位
-       temp:=Seqint(tp[1..lgn], 2);
-       tph:=[temp: id in [1..Floor(w/lgn)] ];       
-       tph:=Append(tph, Seqint( tp[#tp-(w mod lgn)+1..#tp], 2) );        
-       HB[layer]:=HB[layer] cat tph;
-
-       layer:= layer - 1;
+    layer:= layer - 1;
 end while;
 
-delete layer, tp, tph;
+delete layer, tplgn, tp, tbg, temp;
 //________________________________________________________________________________    
 //print "+HASH consumes", Cputime(tpre);        
 
 
-//__________________________encode the database to e__________________________
-Ee:=[-1: i in [1..Lay_num]];
+//__________________________encode the database to e___________________________
+Ee:=[-1: i in [1..Lay_num]];	
+Sa:=[[]: id in [1..Lay_num-itrivial]];      Pa:=[[]: id in [1..Lay_num-itrivial]];
 for sd in [itrivial+1..Lay_num] do
-     Ee[sd]:=CRT(HB[sd], Sa[1..#HB[sd]]);               
-end for;    //end for sd in [itrivial+1...Lay_num]
+     t:=#HB[sd];	Pa[sd-itrivial][1]:=NextPrime(2*t);    
+     for i in [2..t] do
+          Pa[sd-itrivial][i]:=NextPrime(Pa[sd-itrivial][i-1]);
+     end for;
+     for pi in Pa[sd-itrivial] do
+          xx:=lgn-(Lay_num-sd);        temp:=Ceiling(xx/Log(2,pi) );          
+          Sa[sd-itrivial]:=Append( Sa[sd-itrivial], pi^temp ); 
+     end for;
+     Ee[sd]:=CRT(HB[sd], Sa[sd-itrivial]);               
+end for;            //end for sd in [itrivial+1...Lay_num];
 
 pretime1:=Cputime(tpre);     
 PrintFile("ptime_gentry.txt", <"preprocessing of the server and user consumes", pretime1> );
@@ -355,6 +354,7 @@ PrintFile("ptime_gentry.txt","************");          delete tpre;
 
 //____________________________find the authenticaiton path_________________________
 pu:=Cputime();
+
 ii:=Ceiling(query_input/ Floor(w/lgn) );      // lgn-bit block  in the ii-th w-bit block
 
 alpha:=[0: indx in [1..Lay_num+1]];            // authentication w-bit block, starts from 0
@@ -371,11 +371,12 @@ preuser:=Cputime(pu); 	delete pu;
 //_________________________________execute the PIR_______________________________
 	print "begin execute the single server PIR";
 
-iterations:=2;     ut:=[];   st:=[];
-for cyc in [1..iterations] do   	      //**********iteration**********
-     servertime:=[[]: id in [1..Lay_num+1]];         usertime:=[[]: id in [1..Lay_num+1]];              Res:=[[]: id in [1..Lay_num+1]]; 
+iterations:=10;     ut:=[];   st:=[];
+for cyc in [1..iterations] do   	       
+     servertime:=[[]: id in [1..Lay_num+1]];         usertime:=[[]: id in [1..Lay_num+1]];  
+     Res:=[[]: id in [1..Lay_num+1]];                    Resv:=[];
      	
-     ct:=Cputime();          Resv:=[];
+     ct:=Cputime();         
 
      for itriv in [1..itrivial] do    
 	Resv[itriv]:=MH(itriv,alpha[itriv]); 
@@ -383,27 +384,42 @@ for cyc in [1..iterations] do   	      //**********iteration**********
 
      for i in [itrivial+1..Lay_num+1] do     
           if i ge Lay_num then
-	X:= HB[Lay_num];        S:=Sa;       P:=Pa;               temp:=[];
+	X:= HB[Lay_num];        S:=Sa[#Sa];       P:=Pa[#Pa];               temp:=[];
 	for qx in [(alpha[i]-1)*Floor(w/lgn)+1..alpha[i]*Floor(w/lgn)] do
 	      Rep:=gentry(qx, #X, Ee[Lay_num], S, P, npower);  
 	                            Res[i][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[1];
-	      temp:=temp cat Intseq(Rep[1],2);
+	      temp:=temp cat Intseq(Rep[1],2,lgn);
 	      servertime[i-itrivial][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[2]; 
 	         usertime[i-itrivial][qx-(alpha[i]-1)*Floor(w/lgn)]:=Rep[3];
 	end for;	
 	Resv[i]:=Seqint(temp,2); 
           else
-	X:=HB[i];        S:=Sa[1..#X];       P:=Pa[1..#X];          temp:=[];	     
-	for qx in [(alpha[i]-1)*Ceiling(w/lgn)+1..alpha[i]*Ceiling(w/lgn)] do
+	X:=HB[i];        S:=Sa[i-itrivial];       P:=Pa[i-itrivial];          temp:=[];
+	tplgn:=lgn-(Lay_num-i);	     
+	for qx in [(alpha[i]-1)*Ceiling(w/tplgn)+1..alpha[i]*Ceiling(w/tplgn)] do
 	      Rep:=gentry(qx, #X, Ee[i], S, P, npower);  
-	                            Res[i][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[1];
-	      temp:=temp cat Intseq(Rep[1],2);
-	      servertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[2]; 
-	         usertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/lgn)]:=Rep[3];	      
+	                            Res[i][qx-(alpha[i]-1)*Ceiling(w/tplgn)]:=Rep[1];
+	      temp:=temp cat Intseq(Rep[1],2,tplgn);
+	      servertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/tplgn)]:=Rep[2]; 
+	         usertime[i-itrivial][qx-(alpha[i]-1)*Ceiling(w/tplgn)]:=Rep[3];	     
 	end for; 
 	Resv[i]:=Seqint(temp,2); 
           end if;   
      end for;
+
+/*   temp:=[];  
+for i in [1..#Res[3]] do
+temp:=temp cat Intseq(Res[3][i],2,tplgn);
+end for;
+Seqint(temp,2) eq MH[3,2]; 
+
+ss:=Intseq(MH[1,2],2);
+for j in [1..#temp] do 
+    if temp[j] ne ss[j] then
+        print j;
+   end if;
+end for;
+*/
 //______________________________Verification_Res________________________________      
      j:=Lay_num;	ver:=Resv[j+1];        
      while j gt 0 do
@@ -429,9 +445,11 @@ for cyc in [1..iterations] do   	      //**********iteration**********
      stime:= &+[&+servertime[id]: id in [1..#usertime] ];      	      
      ut[cyc]:=utime;  		st[cyc]:=stime;
 
-     PrintFile("utime_gentry.txt",<"the user consumes",utime,"second, in the iteration",cyc>);        PrintFile("stime_gentry.txt",<"the server consumes",stime,"second, in the iteration",cyc>);
+     PrintFile("utime_gentry.txt",<"the user consumes",utime,"second, in the iteration",cyc>);        
+     PrintFile("stime_gentry.txt",<"the server consumes",stime,"second, in the iteration",cyc>);
 end for;   // end for the  40  iterations
 
 PrintFile("utime_gentry.txt", <"the average time consumed by the user is", &+ut/#ut>);
 PrintFile("stime_gentry.txt", <"the average time consumed by the server is", &+st/#st>); 
 end for;   // end for npower iterations
+print "________________________end of the singe-server VPIR__________________________"
