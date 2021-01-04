@@ -452,4 +452,4 @@ end for;   // end for the  40  iterations
 PrintFile("utime_gentry.txt", <"the average time consumed by the user is", &+ut/#ut>);
 PrintFile("stime_gentry.txt", <"the average time consumed by the server is", &+st/#st>); 
 end for;   // end for npower iterations
-print "________________________end of the singe-server VPIR__________________________"
+print "________________________end of the singe-server VPIR__________________________";
