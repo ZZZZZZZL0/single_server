@@ -257,8 +257,7 @@ end function;
 	//load "single_function.txt";
 	print "finish loading the necessary functions";
 
-
-mx:=16;    itrivial:=0;      w:=256;     
+mx:=20;    itrivial:=0;      w:=256;     
 
 //_____________________________________________________________________________
 for npower in [13..mx] do
@@ -371,7 +370,7 @@ preuser:=Cputime(pu); 	delete pu;
 //_________________________________execute the PIR_______________________________
 	print "begin execute the single server PIR";
 
-iterations:=10;     ut:=[];   st:=[];
+iterations:=30;     ut:=[];   st:=[];
 for cyc in [1..iterations] do   	       
      servertime:=[[]: id in [1..Lay_num+1]];         usertime:=[[]: id in [1..Lay_num+1]];  
      Res:=[[]: id in [1..Lay_num+1]];                    Resv:=[];
